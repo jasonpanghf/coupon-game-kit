@@ -6,18 +6,18 @@ import type { CampaignConfig } from '../../reward/rewardConfig';
 import { trackEvent } from '../../shared/analytics';
 import { getStoredValue, setStoredValue } from '../../shared/storage';
 
-type SpinWheelGameProps = {
+type ScratchCardGameProps = {
   config: CampaignConfig;
   embedContext: EmbedContext;
 };
 
-type GameState = 'ready' | 'spinning' | 'complete';
+type GameState = 'ready' | 'scratching' | 'complete';
 type StoredReward = {
   result: RewardResult;
   claim: ClaimRewardResponse;
 };
 
-export function SpinWheelGame({ config, embedContext }: SpinWheelGameProps) {
+export function ScratchCardGame({ config, embedContext }: ScratchCardGameProps) {
   const gameType = config.game.type;
   const attemptedKey = `${config.campaignId}:${gameType}:${embedContext.userId || 'anonymous'}:attempted`;
   const resultKey = `${config.campaignId}:${gameType}:${embedContext.userId || 'anonymous'}:result`;
@@ -26,54 +26,29 @@ export function SpinWheelGame({ config, embedContext }: SpinWheelGameProps) {
   const validation = useMemo(() => validateRewardConfig(config.rewards), [config.rewards]);
   const [alreadyAttempted, setAlreadyAttempted] = useState(storedAttempted);
   const [state, setState] = useState<GameState>(storedAttempted ? 'complete' : 'ready');
-  const [rotation, setRotation] = useState(0);
+  const [scratchProgress, setScratchProgress] = useState(storedAttempted ? 100 : 0);
   const [result, setResult] = useState<RewardResult | null>(storedReward?.result ?? null);
   const [claim, setClaim] = useState<ClaimRewardResponse | null>(storedReward?.claim ?? null);
   const [copyLabel, setCopyLabel] = useState('Copy Coupon');
-  const canPlay = validation.valid && state !== 'spinning' && !alreadyAttempted;
+  const canPlay = validation.valid && state !== 'scratching' && !alreadyAttempted;
   const isDevelopmentMode = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
-  const wheelBackground = useMemo(() => {
-    const segmentSize = 360 / config.rewards.length;
-    const stops = config.rewards.flatMap((reward, index) => {
-      const start = index * segmentSize;
-      const end = start + segmentSize;
-      const color = reward.color || (index % 2 === 0 ? config.theme.primaryColor : '#00ACC1');
-      return [`${color} ${start}deg`, `${color} ${end}deg`];
-    });
-
-    return `conic-gradient(${stops.join(', ')})`;
-  }, [config.rewards, config.theme.primaryColor]);
-
-  async function handleSpin() {
+  async function revealReward() {
     if (!canPlay) {
       return;
     }
 
-    setState('spinning');
+    setState('scratching');
     setClaim(null);
-    trackEvent('game_started', {
-      context: embedContext,
-      gameType,
-    });
-    trackEvent('spin_started', {
-      context: embedContext,
-      gameType,
-    });
+    trackEvent('game_started', { context: embedContext, gameType });
 
     const selected = pickReward(config);
     setStoredValue(attemptedKey, true);
     setAlreadyAttempted(true);
-    setRotation((current) => current + selected.spinDegrees);
 
     window.setTimeout(async () => {
+      setScratchProgress(100);
       setResult(selected);
-      trackEvent('spin_completed', {
-        context: embedContext,
-        gameType,
-        rewardId: selected.reward.id,
-        data: { result: selected },
-      });
       trackEvent('game_completed', {
         context: embedContext,
         gameType,
@@ -84,29 +59,10 @@ export function SpinWheelGame({ config, embedContext }: SpinWheelGameProps) {
         context: embedContext,
         gameType,
         rewardId: selected.reward.id,
-        data: {
-          hasCoupon: Boolean(selected.reward.couponCode),
-          result: selected,
-        },
+        data: { hasCoupon: Boolean(selected.reward.couponCode), result: selected },
       });
 
-      let claimResult: ClaimRewardResponse;
-      try {
-        claimResult = await claimReward({
-          campaignId: selected.campaignId,
-          userId: embedContext.userId,
-          rewardId: selected.reward.id,
-          couponCode: selected.reward.couponCode,
-          source: embedContext.source,
-        });
-      } catch {
-        claimResult = {
-          claimId: `failed:${selected.campaignId}:${selected.reward.id}`,
-          success: false,
-          couponCode: null,
-          message: 'We could not claim this reward right now. Please try again later.',
-        };
-      }
+      const claimResult = await claimSelectedReward(selected);
       setClaim(claimResult);
       setStoredValue<StoredReward>(resultKey, { result: selected, claim: claimResult });
       trackEvent('reward_claimed', {
@@ -116,7 +72,40 @@ export function SpinWheelGame({ config, embedContext }: SpinWheelGameProps) {
         data: { result: selected, claim: claimResult },
       });
       setState('complete');
-    }, config.game.spinDurationMs);
+    }, 900);
+  }
+
+  async function claimSelectedReward(selected: RewardResult) {
+    try {
+      return await claimReward({
+        campaignId: selected.campaignId,
+        userId: embedContext.userId,
+        rewardId: selected.reward.id,
+        couponCode: selected.reward.couponCode,
+        source: embedContext.source,
+      });
+    } catch {
+      return {
+        claimId: `failed:${selected.campaignId}:${selected.reward.id}`,
+        success: false,
+        couponCode: null,
+        message: 'We could not claim this reward right now. Please try again later.',
+      };
+    }
+  }
+
+  function handleScratchMove() {
+    if (!canPlay && state !== 'scratching') {
+      return;
+    }
+
+    setScratchProgress((current) => {
+      const next = Math.min(100, current + 18);
+      if (next >= 60 && canPlay) {
+        revealReward();
+      }
+      return next;
+    });
   }
 
   function handleResetDemo() {
@@ -124,9 +113,9 @@ export function SpinWheelGame({ config, embedContext }: SpinWheelGameProps) {
     setStoredValue(resultKey, null);
     setAlreadyAttempted(false);
     setState('ready');
+    setScratchProgress(0);
     setResult(null);
     setClaim(null);
-    setRotation(0);
   }
 
   async function handleCopyCoupon() {
@@ -160,10 +149,7 @@ export function SpinWheelGame({ config, embedContext }: SpinWheelGameProps) {
       context: embedContext,
       gameType,
       rewardId: result.reward.id,
-      data: {
-        ctaLabel: result.reward.ctaLabel,
-        ctaUrl: result.reward.ctaUrl,
-      },
+      data: { ctaLabel: result.reward.ctaLabel, ctaUrl: result.reward.ctaUrl },
     });
     window.open(result.reward.ctaUrl, '_blank', 'noopener,noreferrer');
   }
@@ -198,18 +184,8 @@ export function SpinWheelGame({ config, embedContext }: SpinWheelGameProps) {
     >
       <header className="game-header">
         <p className="eyebrow">{config.brandName}</p>
-        <h1>{config.title}</h1>
+        <h1>Scratch to Win</h1>
         <p>{config.subtitle}</p>
-        <dl className="embed-meta" aria-label="Embed context">
-          <div>
-            <dt>Campaign</dt>
-            <dd>{embedContext.campaignId}</dd>
-          </div>
-          <div>
-            <dt>Source</dt>
-            <dd>{embedContext.source}</dd>
-          </div>
-        </dl>
       </header>
 
       {!validation.valid ? (
@@ -217,37 +193,23 @@ export function SpinWheelGame({ config, embedContext }: SpinWheelGameProps) {
           <p className="eyebrow">Config Error</p>
           <h2>This campaign is not available right now.</h2>
           <p>Please check reward probability and campaign settings.</p>
-          <ul>
-            {validation.errors.map((error) => (
-              <li key={error}>{error}</li>
-            ))}
-          </ul>
         </section>
       ) : null}
 
-      <main className="game-stage" aria-live="polite" hidden={!validation.valid}>
-        <div className="wheel-wrap">
-          <div className="wheel-pointer" aria-hidden="true" />
-          <div
-            className="wheel"
-            style={{
-              background: wheelBackground,
-              transform: `rotate(${rotation}deg)`,
-              transitionDuration: `${config.game.spinDurationMs}ms`,
-            }}
-          >
-            {config.rewards.map((reward, index) => (
-              <span
-                className="wheel-label"
-                key={reward.id}
-                style={{ transform: `rotate(${index * (360 / config.rewards.length) + 360 / config.rewards.length / 2}deg)` }}
-              >
-                {reward.label}
-              </span>
-            ))}
-          </div>
-          <div className="wheel-hub">SPIN</div>
-        </div>
+      <main className="game-stage single-game" aria-live="polite" hidden={!validation.valid}>
+        <button
+          className={`scratch-card ${result ? 'is-revealed' : ''}`}
+          type="button"
+          disabled={!canPlay && state !== 'scratching'}
+          onClick={revealReward}
+          onPointerMove={handleScratchMove}
+          aria-label="Scratch card to reveal reward"
+        >
+          <span className="scratch-prize">{result?.reward.label || 'Hidden Prize'}</span>
+          <span className="scratch-cover" style={{ opacity: Math.max(0, 1 - scratchProgress / 100) }}>
+            {state === 'scratching' ? 'Scratching...' : alreadyAttempted ? 'Already Played' : 'Scratch Here'}
+          </span>
+        </button>
 
         <section className="result-panel" role={result ? 'dialog' : undefined} aria-modal={result ? 'true' : undefined}>
           {result ? (
@@ -274,29 +236,16 @@ export function SpinWheelGame({ config, embedContext }: SpinWheelGameProps) {
           ) : (
             <>
               <p className="eyebrow">Ready</p>
-              <h2>One spin, one reward</h2>
-              <p>Rewards, probabilities, CTA, terms, and colors are loaded from campaign config.</p>
+              <h2>Reveal your travel perk</h2>
+              <p>Tap or swipe across the card to reveal one configured reward.</p>
             </>
           )}
         </section>
       </main>
 
-      <nav className="legal-links" aria-label="Campaign legal links">
-        {config.legal.termsUrl ? (
-          <a href={config.legal.termsUrl} target="_blank" rel="noreferrer">
-            Terms
-          </a>
-        ) : null}
-        {config.legal.privacyUrl ? (
-          <a href={config.legal.privacyUrl} target="_blank" rel="noreferrer">
-            Privacy
-          </a>
-        ) : null}
-      </nav>
-
       <footer className="action-bar">
-        <button className="primary-button" disabled={!canPlay} type="button" onClick={handleSpin}>
-          {state === 'spinning' ? 'Spinning...' : alreadyAttempted ? 'Already Played' : 'Spin Now'}
+        <button className="primary-button" disabled={!canPlay} type="button" onClick={revealReward}>
+          {state === 'scratching' ? 'Revealing...' : alreadyAttempted ? 'Already Played' : 'Reveal Card'}
         </button>
         {isDevelopmentMode ? (
           <button className="text-button" type="button" onClick={handleResetDemo}>
@@ -312,3 +261,4 @@ export function SpinWheelGame({ config, embedContext }: SpinWheelGameProps) {
     </div>
   );
 }
+

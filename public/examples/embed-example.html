@@ -65,12 +65,17 @@
       <header>
         <h1>Parent App Embed Example</h1>
         <p>This page embeds the coupon game in an iframe and listens for postMessage events.</p>
+        <p>
+          <button type="button" data-game="spin-wheel">Spin Wheel</button>
+          <button type="button" data-game="scratch-card">Scratch Card</button>
+          <button type="button" data-game="mystery-box">Mystery Box</button>
+        </p>
       </header>
 
       <iframe
         id="couponGameFrame"
         title="Coupon game"
-        src="../?campaignId=hotel-spring-2026&userId=demo-user-42&source=embed-example&locale=en-US&embedded=true"
+        src="../?campaignId=hotel-spring-2026&userId=demo-user-42&source=embed-example&locale=en-US&embedded=true&gameType=spin-wheel"
       ></iframe>
 
       <section class="event-log" aria-live="polite">
@@ -82,6 +87,16 @@
     <script>
       const eventLog = document.getElementById('eventLog');
       const frame = document.getElementById('couponGameFrame');
+      const buttons = document.querySelectorAll('[data-game]');
+
+      buttons.forEach((button) => {
+        button.addEventListener('click', () => {
+          const gameType = button.getAttribute('data-game');
+          eventLog.textContent = 'Waiting for game events...';
+          frame.style.display = 'block';
+          frame.src = `../?campaignId=hotel-spring-2026&userId=demo-user-42-${gameType}&source=embed-example&locale=en-US&embedded=true&gameType=${gameType}`;
+        });
+      });
 
       window.addEventListener('message', (event) => {
         const message = event.data;

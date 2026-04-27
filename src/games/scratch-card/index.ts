@@ -1,5 +1,1 @@
-export const scratchCardGame = {
-  id: 'scratch-card',
-  status: 'planned',
-};
-
+export { ScratchCardGame } from './ScratchCardGame';

@@ -4,6 +4,7 @@ export type EmbedContext = {
   source: string;
   locale: string;
   embedded: boolean;
+  gameType?: 'spin-wheel' | 'scratch-card' | 'mystery-box';
 };
 
 export type CouponGameEventName =
@@ -49,5 +50,14 @@ export function readEmbedContext(defaultCampaignId: string): EmbedContext {
     source: params.get('source') || 'standalone',
     locale: params.get('locale') || navigator.language || 'en',
     embedded: params.get('embedded') === 'true',
+    gameType: normalizeGameType(params.get('gameType')),
   };
+}
+
+function normalizeGameType(value: string | null) {
+  if (value === 'scratch-card' || value === 'mystery-box' || value === 'spin-wheel') {
+    return value;
+  }
+
+  return undefined;
 }
