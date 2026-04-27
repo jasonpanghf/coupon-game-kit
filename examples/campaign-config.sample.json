@@ -1,0 +1,60 @@
+{
+  "campaignId": "hotel-spring-2026",
+  "campaignName": "Spring Travel Lucky Spin",
+  "locale": "en",
+  "title": "Spin to Win",
+  "subtitle": "Try your luck and win a special travel coupon.",
+  "brandName": "Tabi Life",
+  "theme": {
+    "primaryColor": "#1E88E5",
+    "secondaryColor": "#FFFFFF",
+    "backgroundColor": "#F7FAFC",
+    "buttonColor": "#1E88E5",
+    "buttonTextColor": "#FFFFFF"
+  },
+  "game": {
+    "type": "spin-wheel",
+    "maxAttemptsPerUser": 1,
+    "spinDurationMs": 4200,
+    "showConfetti": true
+  },
+  "rewards": [
+    {
+      "id": "reward_10_off",
+      "label": "10% OFF",
+      "description": "Save 10% on your next booking.",
+      "couponCode": "SPRING10",
+      "probability": 40,
+      "ctaLabel": "Use Coupon",
+      "ctaUrl": "https://example.com/booking",
+      "terms": "Valid until 2026-06-30.",
+      "color": "#1E88E5"
+    },
+    {
+      "id": "reward_drink",
+      "label": "Free Drink",
+      "description": "Enjoy one free drink at the hotel lounge.",
+      "couponCode": "DRINK2026",
+      "probability": 30,
+      "ctaLabel": "View Details",
+      "ctaUrl": "https://example.com/lounge",
+      "terms": "Valid during your stay.",
+      "color": "#00ACC1"
+    },
+    {
+      "id": "reward_no_prize",
+      "label": "Try Again",
+      "description": "No prize this time.",
+      "couponCode": null,
+      "probability": 30,
+      "ctaLabel": "See Other Offers",
+      "ctaUrl": "https://example.com/offers",
+      "terms": "",
+      "color": "#64748B"
+    }
+  ],
+  "legal": {
+    "termsUrl": "https://example.com/terms",
+    "privacyUrl": "https://example.com/privacy"
+  }
+}
