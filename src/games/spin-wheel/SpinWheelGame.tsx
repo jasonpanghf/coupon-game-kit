@@ -240,9 +240,13 @@ export function SpinWheelGame({ config, embedContext }: SpinWheelGameProps) {
               <span
                 className="wheel-label"
                 key={reward.id}
-                style={{ transform: `rotate(${index * (360 / config.rewards.length) + 360 / config.rewards.length / 2}deg)` }}
+                style={
+                  {
+                    '--label-angle': `${index * (360 / config.rewards.length) + 360 / config.rewards.length / 2}deg`,
+                  } as CSSProperties
+                }
               >
-                {reward.label}
+                <span>{reward.label}</span>
               </span>
             ))}
           </div>

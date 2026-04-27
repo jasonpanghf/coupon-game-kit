@@ -5,6 +5,7 @@ export type RewardResult = {
   reward: RewardItem;
   selectedAt: string;
   spinDegrees: number;
+  selectedIndex: number;
 };
 
 export type RewardConfigValidation = {
@@ -78,6 +79,7 @@ export function pickReward(config: CampaignConfig, random = Math.random): Reward
     reward: selected,
     selectedAt: new Date().toISOString(),
     spinDegrees: calculateSpinDegrees(config.rewards, selected, random),
+    selectedIndex: Math.max(0, config.rewards.findIndex((reward) => reward.id === selected.id)),
   };
 }
 
@@ -86,7 +88,7 @@ function calculateSpinDegrees(rewards: RewardItem[], selected: RewardItem, rando
   const selectedIndex = Math.max(0, rewards.findIndex((reward) => reward.id === selected.id));
   const segmentCenter = selectedIndex * segmentSize + segmentSize / 2;
   const jitter = (random() - 0.5) * segmentSize * 0.4;
-  const pointerOffset = 270;
+  const pointerOffset = 0;
   const fullSpins = 5 * 360;
 
   return fullSpins + pointerOffset - segmentCenter + jitter;

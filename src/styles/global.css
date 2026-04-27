@@ -144,15 +144,28 @@ button {
 
 .wheel-label {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 42%;
-  transform-origin: 0 0;
+  inset: 13px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  transform: rotate(var(--label-angle));
   color: #ffffff;
-  font-size: clamp(10px, 2.8vw, 13px);
+  font-size: clamp(9px, 2.4vw, 12px);
   font-weight: 900;
-  text-align: right;
+  line-height: 1.05;
+  pointer-events: none;
+  text-align: center;
   text-shadow: 0 1px 7px rgba(15, 23, 42, 0.42);
+}
+
+.wheel-label span {
+  display: -webkit-box;
+  width: min(68px, 19vw);
+  margin-top: 20px;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow-wrap: anywhere;
 }
 
 .wheel-pointer {
@@ -181,11 +194,17 @@ button {
   font-weight: 900;
 }
 
+.scratch-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
 .scratch-card {
   position: relative;
   display: grid;
-  width: min(100%, 520px);
-  min-height: 260px;
+  width: 100%;
+  min-height: 112px;
   margin: 0 auto;
   padding: 0;
   overflow: hidden;
@@ -208,14 +227,18 @@ button {
   grid-area: 1 / 1;
   display: grid;
   place-items: center;
-  padding: 24px;
+  min-width: 0;
+  padding: 12px;
+  overflow: hidden;
   text-align: center;
 }
 
 .scratch-prize {
   color: #ffffff;
-  font-size: clamp(32px, 10vw, 56px);
+  font-size: clamp(18px, 5.8vw, 30px);
   font-weight: 950;
+  line-height: 1.02;
+  overflow-wrap: anywhere;
   text-shadow: 0 2px 16px rgba(15, 23, 42, 0.28);
 }
 
@@ -224,8 +247,10 @@ button {
   background:
     repeating-linear-gradient(135deg, #e2e8f0 0 12px, #cbd5e1 12px 24px),
     #e2e8f0;
-  font-size: clamp(26px, 8vw, 44px);
+  font-size: clamp(18px, 5.6vw, 28px);
   font-weight: 950;
+  line-height: 1.05;
+  overflow-wrap: anywhere;
   transition: opacity 260ms ease;
 }
 
@@ -433,6 +458,14 @@ iframe {
     width: fit-content;
     min-width: 190px;
   }
+
+  .scratch-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .scratch-card {
+    min-height: 132px;
+  }
 }
 
 @media (max-width: 430px) {
@@ -445,6 +478,10 @@ iframe {
   }
 
   .box-grid {
+    gap: 8px;
+  }
+
+  .scratch-grid {
     gap: 8px;
   }
 

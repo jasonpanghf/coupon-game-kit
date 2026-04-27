@@ -15,6 +15,7 @@ type GameState = 'ready' | 'scratching' | 'complete';
 type StoredReward = {
   result: RewardResult;
   claim: ClaimRewardResponse;
+  cardIndex: number;
 };
 
 export function ScratchCardGame({ config, embedContext }: ScratchCardGameProps) {
@@ -27,18 +28,20 @@ export function ScratchCardGame({ config, embedContext }: ScratchCardGameProps) 
   const [alreadyAttempted, setAlreadyAttempted] = useState(storedAttempted);
   const [state, setState] = useState<GameState>(storedAttempted ? 'complete' : 'ready');
   const [scratchProgress, setScratchProgress] = useState(storedAttempted ? 100 : 0);
+  const [selectedCard, setSelectedCard] = useState<number | null>(storedReward?.cardIndex ?? null);
   const [result, setResult] = useState<RewardResult | null>(storedReward?.result ?? null);
   const [claim, setClaim] = useState<ClaimRewardResponse | null>(storedReward?.claim ?? null);
   const [copyLabel, setCopyLabel] = useState('Copy Coupon');
   const canPlay = validation.valid && state !== 'scratching' && !alreadyAttempted;
   const isDevelopmentMode = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
-  async function revealReward() {
+  async function revealReward(cardIndex: number) {
     if (!canPlay) {
       return;
     }
 
     setState('scratching');
+    setSelectedCard(cardIndex);
     setClaim(null);
     trackEvent('game_started', { context: embedContext, gameType });
 
@@ -53,23 +56,23 @@ export function ScratchCardGame({ config, embedContext }: ScratchCardGameProps) 
         context: embedContext,
         gameType,
         rewardId: selected.reward.id,
-        data: { result: selected },
+        data: { result: selected, cardIndex },
       });
       trackEvent('reward_revealed', {
         context: embedContext,
         gameType,
         rewardId: selected.reward.id,
-        data: { hasCoupon: Boolean(selected.reward.couponCode), result: selected },
+        data: { hasCoupon: Boolean(selected.reward.couponCode), result: selected, cardIndex },
       });
 
       const claimResult = await claimSelectedReward(selected);
       setClaim(claimResult);
-      setStoredValue<StoredReward>(resultKey, { result: selected, claim: claimResult });
+      setStoredValue<StoredReward>(resultKey, { result: selected, claim: claimResult, cardIndex });
       trackEvent('reward_claimed', {
         context: embedContext,
         gameType,
         rewardId: selected.reward.id,
-        data: { result: selected, claim: claimResult },
+        data: { result: selected, claim: claimResult, cardIndex },
       });
       setState('complete');
     }, 900);
@@ -94,7 +97,7 @@ export function ScratchCardGame({ config, embedContext }: ScratchCardGameProps) 
     }
   }
 
-  function handleScratchMove() {
+  function handleScratchMove(cardIndex: number) {
     if (!canPlay && state !== 'scratching') {
       return;
     }
@@ -102,7 +105,7 @@ export function ScratchCardGame({ config, embedContext }: ScratchCardGameProps) 
     setScratchProgress((current) => {
       const next = Math.min(100, current + 18);
       if (next >= 60 && canPlay) {
-        revealReward();
+        revealReward(cardIndex);
       }
       return next;
     });
@@ -114,6 +117,7 @@ export function ScratchCardGame({ config, embedContext }: ScratchCardGameProps) 
     setAlreadyAttempted(false);
     setState('ready');
     setScratchProgress(0);
+    setSelectedCard(null);
     setResult(null);
     setClaim(null);
   }
@@ -197,19 +201,32 @@ export function ScratchCardGame({ config, embedContext }: ScratchCardGameProps) 
       ) : null}
 
       <main className="game-stage single-game" aria-live="polite" hidden={!validation.valid}>
-        <button
-          className={`scratch-card ${result ? 'is-revealed' : ''}`}
-          type="button"
-          disabled={!canPlay && state !== 'scratching'}
-          onClick={revealReward}
-          onPointerMove={handleScratchMove}
-          aria-label="Scratch card to reveal reward"
-        >
-          <span className="scratch-prize">{result?.reward.label || 'Hidden Prize'}</span>
-          <span className="scratch-cover" style={{ opacity: Math.max(0, 1 - scratchProgress / 100) }}>
-            {state === 'scratching' ? 'Scratching...' : alreadyAttempted ? 'Already Played' : 'Scratch Here'}
-          </span>
-        </button>
+        <section className="scratch-grid" aria-label="Scratch cards">
+          {config.rewards.map((reward, index) => {
+            const isSelected = selectedCard === index;
+            const isRevealed = Boolean(result && isSelected);
+
+            return (
+              <button
+                className={`scratch-card ${isSelected ? 'is-selected' : ''} ${isRevealed ? 'is-revealed' : ''}`}
+                key={reward.id}
+                type="button"
+                disabled={!canPlay && !isSelected}
+                onClick={() => revealReward(index)}
+                onPointerMove={() => handleScratchMove(index)}
+                aria-label={`Scratch card ${index + 1}`}
+              >
+                <span className="scratch-prize">{isRevealed ? result?.reward.label : ''}</span>
+                <span
+                  className="scratch-cover"
+                  style={{ opacity: isSelected ? Math.max(0, 1 - scratchProgress / 100) : 1 }}
+                >
+                  {isSelected && state === 'scratching' ? 'Scratching...' : `Card ${index + 1}`}
+                </span>
+              </button>
+            );
+          })}
+        </section>
 
         <section className="result-panel" role={result ? 'dialog' : undefined} aria-modal={result ? 'true' : undefined}>
           {result ? (
@@ -236,16 +253,16 @@ export function ScratchCardGame({ config, embedContext }: ScratchCardGameProps) 
           ) : (
             <>
               <p className="eyebrow">Ready</p>
-              <h2>Reveal your travel perk</h2>
-              <p>Tap or swipe across the card to reveal one configured reward.</p>
+              <h2>Pick 1 of 10 cards</h2>
+              <p>Choose any card to scratch and reveal one configured reward.</p>
             </>
           )}
         </section>
       </main>
 
       <footer className="action-bar">
-        <button className="primary-button" disabled={!canPlay} type="button" onClick={revealReward}>
-          {state === 'scratching' ? 'Revealing...' : alreadyAttempted ? 'Already Played' : 'Reveal Card'}
+        <button className="primary-button" disabled type="button">
+          {state === 'scratching' ? 'Revealing...' : alreadyAttempted ? 'Already Played' : 'Choose A Card Above'}
         </button>
         {isDevelopmentMode ? (
           <button className="text-button" type="button" onClick={handleResetDemo}>
@@ -261,4 +278,3 @@ export function ScratchCardGame({ config, embedContext }: ScratchCardGameProps) 
     </div>
   );
 }
-
