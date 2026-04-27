@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import React, { type ReactNode } from 'react';
 
 type PanelProps = {
   children: ReactNode;
@@ -8,4 +8,3 @@ type PanelProps = {
 export function Panel({ children, className = '' }: PanelProps) {
   return <section className={`panel ${className}`.trim()}>{children}</section>;
 }
-

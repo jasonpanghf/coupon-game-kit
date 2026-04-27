@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties } from 'react';
+import React, { useMemo, useState, type CSSProperties } from 'react';
 import type { EmbedContext } from '../../embed/postMessage';
 import { claimReward, type ClaimRewardResponse } from '../../reward/couponApi';
 import { pickReward, type RewardResult, validateRewardConfig } from '../../reward/rewardEngine';
